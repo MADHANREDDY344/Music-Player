@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MUSIC PLAYER</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-96x96.png">
+
+
+<!-- MP3 Metadata Reader -->
+<script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.7/dist/jsmediatags.min.js"></script>
+
+<style>
+
+body {
+  margin: 0;
+  background: #020617;
+  font-family: "Inter", sans-serif;
+  color: white;
+  overflow: hidden;
+}
+.flex { display: flex; }
+.center { display: flex; align-items: center; justify-content: center; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 7px; }
+::-webkit-scrollbar-thumb { background:#1e293b; border-radius:5px; }
+
+/* -----------------------------------------
+   SIDEBAR
+------------------------------------------*/
+.sidebar {
+  width: 240px;
+  background: #0f172a;
+  height: 100vh;
+  padding: 20px;
+  border-right: 1px solid #1e293b;
+}
+
+.logo {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.menu-btn {
+  padding: 14px;
+  background: #1e293b;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.menu-btn:hover { background: #334155; }
+.upload-btn { background: #10b981; }
+.upload-btn:hover { background: #059669; }
+
+/* -----------------------------------------
+   MAIN LIBRARY
+------------------------------------------*/
+.main {
+  flex: 1;
+  padding: 40px;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.song-card {
+  background: #1e293b;
+  margin-bottom: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.song-card:hover { background: #334155; }
+
+/* -----------------------------------------
+   NOW PLAYING FULLSCREEN DRAWER
+------------------------------------------*/
+.now-playing {
+  position: fixed;
+  bottom: -100%;
+  left: 0;
+  width: 100%;
+  height: 92vh;
+  background: rgba(10,15,35,0.95);
+  backdrop-filter: blur(15px);
+  border-radius: 25px 25px 0 0;
+  padding-top: 25px;
+  transition: 0.5s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.controls {
+  margin-top: 10px;    
+  padding-top: 10px;
+  padding-bottom: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 45px;
+}
+.controls button {
+  font-size: 34px;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+.now-playing.show {
+  bottom: 0;
+}
+
+/* Rotating CD Behind */
+.cd-back {
+  width: 330px;
+  height: 330px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #6b7280, #1f2937);
+  position: absolute;
+  top: 110px;
+  animation: rotateCD 10s linear infinite;
+  z-index: 1;
+}
+@keyframes rotateCD { to { transform: rotate(360deg); } }
+
+/* Album Art */
+.album-art {
+  width: 220px;
+  height: 300px;
+  border-radius: 35px;
+  overflow: hidden;
+  position: relative;
+  z-index: 3;
+  border: 5px solid rgba(255,255,255,0.12);
+}
+.album-art:hover{
+  transition: 0.3s;
+  transform:scale(1.05);
+  color: #059669;
+}
+.album-art img {
+  width: 100%; height: 100%; object-fit: contain;
+}
+
+/* Text */
+#npMovie, #npMusic {
+  margin: 5px 0;
+  font-size: 16px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+/* MINI PLAYER */
+.mini-player {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid #1e293b;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 15px;
+  z-index: 20;
+  cursor: pointer;
+}
+
+.mini-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mini-left img {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.mini-title { font-size: 15px; font-weight: 600; }
+.mini-sub { font-size: 12px; opacity: 0.7; }
+
+.mini-controls button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 26px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+/* Visualizer */
+.visualizer {
+  width: 330px;
+  height: 330px;
+  position: absolute;
+  top: 110px;
+  z-index: 2;
+}
+.visualizer span {
+  position: absolute;
+  width: 5px;
+  height: 40px;
+  background: var(--accent, #10b981);
+  left: 50%;
+  top: 0;
+  transform-origin: center 165px;
+  border-radius: 6px;
+  opacity: 0.7;
+}
+
+/* Title */
+#npTitle {
+  margin-top: 320px;
+  font-size: 26px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.timer { margin-top: 10px; text-align: center; font-size: 18px; opacity: 0.9; }
+
+.seek-wrap { width: 80%; margin: 10px auto; }
+input[type=range] { width: 100%; }
+
+/* MOBILE */
+@media(max-width: 720px) {
+  .sidebar { display: none; }
+  .main { padding: 20px; }
+}
+/* MOBILE-ONLY MINI-PLAYER FIX */
+@media (max-width: 720px) {
+
+  .mini-player {
+    height: 110px !important;
+    flex-direction: column !important;
+    padding: 10px 12px !important;
+    gap: 4px !important;
+  }
+
+  /* top row layout */
+  .mini-left {
+    width: 100%;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  .mini-left img {
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  /* title + subtitle */
+  .mini-title {
+    font-size: 17px !important;
+  }
+
+  .mini-sub {
+    font-size: 11px !important;
+  }
+
+  /* seekbar full width */
+  #miniSeek {
+    width: 100% !important;
+    justify-content: start;
+  }
+
+  /* controls centered */
+  .mini-controls {
+    width: 100%;
+    display: flex !important;
+    justify-content: center !important;
+    gap: 35px !important;
+    margin-top: 1px !important;
+  }
+
+  .mini-controls button {
+    font-size: 26px !important;
+  }
+}
+
+</style>
+</head>
+
+<body class="flex">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="logo">🎵 Soundify</div>
+
+  <input type="text" id="searchBar" placeholder="🔍 Search music…" style="
+    width:100%; padding:12px 16px; border-radius:50px; border:none; outline:none;
+    margin-bottom:18px; background:#1e293b; color:white; font-size:15px;">
+  
+  <div class="menu-btn">Home</div>
+  <div class="menu-btn upload-btn" id="uploadBtn">Upload Music</div>
+</div>
+
+<!-- MAIN LIBRARY -->
+<div class="main">
+  <h1>Your Library</h1>
+  <div id="songList"></div>
+</div>
+
+<!-- NOW PLAYING FULLSCREEN -->
+<div class="now-playing" id="nowBox">
+
+  <button id="backBtn" style="
+    position:absolute; top:18px; left:18px; font-size:22px;
+    background:rgba(255,255,255,0.12); border:none; color:white;
+    padding:10px 14px; border-radius:50%; cursor:pointer; z-index:10;">
+    ←
+  </button>
+
+  <div class="cd-back"></div>
+  <div class="visualizer" id="visualizer"></div>
+  <div class="album-art"><img id="npArt"></div>
+
+  <h2 id="npTitle"></h2>
+  <div id="npMovie"></div>
+  <div id="npMusic"></div>
+
+  <div class="timer" id="npTime">0:00 / 0:00</div>
+
+  <div class="seek-wrap">
+    <input type="range" id="seekBar" min="0" value="0">
+  </div>
+
+  <div class="controls">
+    <button id="prevBtn">⏮</button>
+    <button id="playBtn">▶</button>
+    <button id="nextBtn">⏭</button>
+  </div>
+</div>
+
+<audio id="audio"></audio>
+
+<!-- MINI PLAYER -->
+<div class="mini-player" id="miniPlayer" style="display:none;">
+
+  <div class="mini-left">
+      <img id="miniCover">
+      <div>
+          <div id="miniTitle" class="mini-title"></div>
+          <div id="miniSub" class="mini-sub"></div>
+          <div id="miniTime" style="font-size:12px;opacity:0.7;margin-top:4px;">0:00 / 0:00</div>
+      </div>
+  </div>
+
+  <div style="flex:1; padding:0 10px;">
+    <input id="miniSeek" type="range" min="0" value="0" style="width:100%;">
+  </div>
+
+  <div class="mini-controls">
+      <button id="miniPrev">⏮</button>
+      <button id="miniPlay">▶</button>
+      <button id="miniNext">⏭</button>
+  </div>
+
+</div>
+
+
+<script>
+// -----------------------------
+// VARIABLES
+// -----------------------------
+let songs = [];
+let currentIndex = 0;
+
+const audio = document.getElementById("audio");
+const nowBox = document.getElementById("nowBox");
+const miniPlayer = document.getElementById("miniPlayer");
+
+const npArt = document.getElementById("npArt");
+const npTitle = document.getElementById("npTitle");
+const npMovie = document.getElementById("npMovie");
+const npMusic = document.getElementById("npMusic");
+const npTime = document.getElementById("npTime");
+const seekBar = document.getElementById("seekBar");
+
+const miniCover = document.getElementById("miniCover");
+const miniTitle = document.getElementById("miniTitle");
+const miniSub = document.getElementById("miniSub");
+const miniTime = document.getElementById("miniTime");
+const miniSeek = document.getElementById("miniSeek");
+
+
+// -----------------------------
+// UPLOAD SONGS
+// -----------------------------
+document.getElementById("uploadBtn").onclick = () => {
+  let input = document.createElement("input");
+  input.type = "file";
+  input.accept = "audio/*";
+  input.multiple = true;
+
+  input.onchange = e => {
+    [...e.target.files].forEach(f => readMetadata(f));
+  };
+
+  input.click();
+};
+
+
+// -----------------------------
+// READ METADATA
+// -----------------------------
+function readMetadata(file) {
+  jsmediatags.read(file, {
+    onSuccess: tag => {
+      const title = tag.tags.title || file.name;
+      const movie = tag.tags.album || "Unknown Movie";
+      const director = tag.tags.artist || "Unknown Artist";
+
+      let picture = tag.tags.picture;
+      let cover;
+
+      if (picture) {
+        let base64 = "";
+        const data = picture.data;
+
+        for (let i = 0; i < data.length; i++) {
+          base64 += String.fromCharCode(data[i]);
+        }
+
+        cover = "data:" + picture.format + ";base64," + btoa(base64);
+      } else {
+        cover = "https://picsum.photos/400?random=" + Math.random();
+      }
+
+      songs.push({
+        title,
+        movie,
+        director,
+        url: URL.createObjectURL(file),
+        cover
+      });
+
+      renderLibrary();
+    }
+  });
+}
+
+
+// -----------------------------
+// RENDER SONGS
+// -----------------------------
+function renderLibrary() {
+  const list = document.getElementById("songList");
+  list.innerHTML = "";
+
+  songs.forEach((s, i) => {
+    let card = document.createElement("div");
+    card.className = "song-card";
+    card.innerHTML = `<b>${s.title}</b>`;
+    card.onclick = () => playSong(i);
+    list.appendChild(card);
+  });
+}
+
+
+// -----------------------------
+// PLAY SONG
+// -----------------------------
+function playSong(i) {
+  currentIndex = i;
+  let s = songs[i];
+
+  audio.src = s.url;
+  audio.play();
+
+  // Fullscreen info update
+  npTitle.textContent = s.title;
+  npMovie.textContent = "🎬 " + s.movie;
+  npMusic.textContent = "🎼 " + s.director;
+  npArt.src = s.cover;
+
+  // Hide mini-player while fullscreen open
+  miniPlayer.style.display = "none";
+
+  // Open fullscreen
+  nowBox.classList.add("show");
+
+  // Prepare mini-player (visible after closing fullscreen)
+  updateMiniPlayer(s);
+
+  generateVisualizer();
+  extractColors(s.cover);
+
+  document.getElementById("playBtn").textContent = "⏸";
+  document.getElementById("miniPlay").textContent = "⏸";
+}
+
+
+// -----------------------------
+// UPDATE MINI PLAYER
+// -----------------------------
+function updateMiniPlayer(song) {
+  miniCover.src = song.cover;
+  miniTitle.textContent = song.title;
+  miniSub.textContent = song.movie + " • " + song.director;
+}
+
+
+// -----------------------------
+// BACK — CLOSE FULLSCREEN
+// -----------------------------
+document.getElementById("backBtn").onclick = () => {
+  nowBox.classList.remove("show");
+  miniPlayer.style.display = "flex";  // show again
+};
+
+
+// -----------------------------
+// PLAY / PAUSE (FULL SCREEN)
+// -----------------------------
+document.getElementById("playBtn").onclick = () => {
+  if (audio.paused) {
+    audio.play();
+    playBtn.textContent = "⏸";
+    miniPlay.textContent = "⏸";
+  } else {
+    audio.pause();
+    playBtn.textContent = "▶";
+    miniPlay.textContent = "▶";
+  }
+};
+
+
+// -----------------------------
+// MINI PLAYER PLAY/PAUSE
+// -----------------------------
+miniPlay.onclick = (event) => {
+  event.stopPropagation();
+
+  if (audio.paused) {
+    audio.play();
+    miniPlay.textContent = "⏸";
+    playBtn.textContent = "⏸";
+  } else {
+    audio.pause();
+    miniPlay.textContent = "▶";
+    playBtn.textContent = "▶";
+  }
+};
+
+
+// -----------------------------
+// MINI PLAYER → SHOW FULLSCREEN
+// -----------------------------
+miniPlayer.onclick = () => {
+  miniPlayer.style.display = "none";
+  nowBox.classList.add("show");
+};
+
+
+// -----------------------------
+// NEXT / PREVIOUS
+// -----------------------------
+document.getElementById("nextBtn").onclick = () => {
+  playSong((currentIndex + 1) % songs.length);
+};
+
+document.getElementById("prevBtn").onclick = () => {
+  playSong((currentIndex - 1 + songs.length) % songs.length);
+};
+
+document.getElementById("miniNext").onclick = (event) => {
+  event.stopPropagation();
+  playSong((currentIndex + 1) % songs.length);
+};
+
+document.getElementById("miniPrev").onclick = (event) => {
+  event.stopPropagation();
+  playSong((currentIndex - 1 + songs.length) % songs.length);
+};
+
+
+// -----------------------------
+// SEEK + TIMER
+// -----------------------------
+audio.ontimeupdate = () => {
+  let cur = formatTime(audio.currentTime);
+  let dur = formatTime(audio.duration);
+
+  seekBar.value = audio.currentTime;
+  miniSeek.value = audio.currentTime;
+
+  npTime.textContent = `${cur} / ${dur}`;
+  miniTime.textContent = `${cur} / ${dur}`;
+};
+
+audio.onloadedmetadata = () => {
+  seekBar.max = audio.duration;
+  miniSeek.max = audio.duration;
+};
+
+seekBar.oninput = () => {
+  audio.currentTime = seekBar.value;
+};
+
+miniSeek.oninput = (e) => {
+  audio.currentTime = e.target.value;
+};
+
+
+// -----------------------------
+// FORMAT TIME
+// -----------------------------
+function formatTime(t) {
+  if (!t) return "0:00";
+  let m = Math.floor(t / 60);
+  let s = Math.floor(t % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+
+// -----------------------------
+// COLOR EXTRACTION
+// -----------------------------
+function extractColors(url) {
+  let img = new Image();
+  img.crossOrigin = "anonymous";
+  img.src = url;
+
+  img.onload = () => {
+    let c = document.createElement("canvas");
+    let ctx = c.getContext("2d");
+
+    c.width = img.width;
+    c.height = img.height;
+    ctx.drawImage(img, 0, 0);
+
+    let d = ctx.getImageData(0, 0, c.width, c.height).data;
+    let r = 0, g = 0, b = 0;
+
+    for (let i = 0; i < d.length; i += 20) {
+      r += d[i];
+      g += d[i + 1];
+      b += d[i + 2];
+    }
+
+    r /= (d.length / 20);
+    g /= (d.length / 20);
+    b /= (d.length / 20);
+
+    document.documentElement.style.setProperty("--accent", `rgb(${r}, ${g}, ${b})`);
+  };
+}
+
+
+// -----------------------------
+// LIVE VISUALIZER
+// -----------------------------
+function generateVisualizer() {
+  const vis = document.getElementById("visualizer");
+  vis.innerHTML = "";
+
+  let bars = 80;
+
+  for (let i = 0; i < bars; i++) {
+    let bar = document.createElement("span");
+    bar.style.transform = `rotate(${i * (360 / bars)}deg)`;
+    vis.appendChild(bar);
+  }
+
+  let ctx = new (window.AudioContext || window.webkitAudioContext)();
+  let src = ctx.createMediaElementSource(audio);
+  let analyser = ctx.createAnalyser();
+
+  src.connect(analyser);
+  analyser.connect(ctx.destination);
+
+  analyser.fftSize = 256;
+  let buffer = new Uint8Array(analyser.frequencyBinCount);
+
+  function animate() {
+    requestAnimationFrame(animate);
+    analyser.getByteFrequencyData(buffer);
+
+    [...vis.children].forEach((bar, i) => {
+      let v = buffer[i];
+      bar.style.height = 35 + (v / 255) * 90 + "px";
+      bar.style.opacity = 0.3 + (v / 255);
+    });
+  }
+
+  animate();
+}
+
+
+// -----------------------------
+// SEARCH
+// -----------------------------
+document.getElementById("searchBar").addEventListener("input", function () {
+  const q = this.value.toLowerCase();
+  const list = document.getElementById("songList");
+
+  list.innerHTML = "";
+
+  songs
+    .filter(song => song.title.toLowerCase().includes(q))
+    .forEach((s, i) => {
+      let card = document.createElement("div");
+      card.className = "song-card";
+      card.innerHTML = `<b>${s.title}</b>`;
+      card.onclick = () => playSong(i);
+      list.appendChild(card);
+    });
+});
+
+</script>
+</body>
+</html>
